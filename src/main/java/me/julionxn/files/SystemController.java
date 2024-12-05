@@ -23,49 +23,14 @@ public class SystemController {
     }
 
     public void initialize(){
-        checkFolders();
         fetchOsAndNatives();
-    }
-
-    public void checkFolders(){
-        if (!rootFile.exists()){
-            logger.error("Root path does not exist.");
-            return;
-        }
-        if (!launcherFolderFile.exists() && !launcherFolderFile.mkdir()){
-            logger.error("Error making launcher folder.");
-        }
-        //cache folders
-        checkCriticalFolder("cache");
-        //logs folders
-        checkCriticalFolder("logs");
-        //data folders
-        checkCriticalFolder("data");
-        checkCriticalFolder("data/assets");
-        checkCriticalFolder("data/assets/indexes");
-        checkCriticalFolder("data/assets/objects");
-        checkCriticalFolder("data/assets/skins");
-        checkCriticalFolder("data/libraries");
-        checkCriticalFolder("data/versions");
-        checkCriticalFolder("data/natives");
-        checkCriticalFolder("data/runtimes");
-        checkCriticalFolder("data/temp");
-        //profiles folders
-        checkCriticalFolder("profiles");
-    }
-
-    private void checkCriticalFolder(String folder){
-        File folderFile = launcherFolderPath.resolve(folder).toFile();
-        if (!folderFile.exists() && !folderFile.mkdir()){
-            logger.error("Error making " + folder + " folder.");
-        }
+        checkFolders();
     }
 
     private void fetchOsAndNatives() {
         String osNameProperty = System.getProperty("os.name").toLowerCase();
         String osArchProperty = System.getProperty("os.arch").toLowerCase();
 
-        // Detect OS name
         if (osNameProperty.contains("win")) {
             osName = "windows";
         } else if (osNameProperty.contains("mac") || osNameProperty.contains("os x")) {
@@ -76,7 +41,6 @@ public class SystemController {
             osName = "none";
         }
 
-        // Detect Natives
         switch (osName) {
             case "windows" -> {
                 if (osArchProperty.contains("amd64") || osArchProperty.contains("x86_64")) {
@@ -113,6 +77,40 @@ public class SystemController {
 
     public String getOsName(){
         return osName;
+    }
+
+    public void checkFolders(){
+        if (!rootFile.exists()){
+            logger.error("Root path does not exist.");
+            return;
+        }
+        if (!launcherFolderFile.exists() && !launcherFolderFile.mkdir()){
+            logger.error("Error making launcher folder.");
+        }
+        //cache folders
+        checkCriticalFolder("cache");
+        //logs folders
+        checkCriticalFolder("logs");
+        //data folders
+        checkCriticalFolder("data");
+        checkCriticalFolder("data/assets");
+        checkCriticalFolder("data/assets/indexes");
+        checkCriticalFolder("data/assets/objects");
+        checkCriticalFolder("data/assets/skins");
+        checkCriticalFolder("data/libraries");
+        checkCriticalFolder("data/versions");
+        checkCriticalFolder("data/natives");
+        checkCriticalFolder("data/runtimes");
+        checkCriticalFolder("data/temp");
+        //profiles folders
+        checkCriticalFolder("profiles");
+    }
+
+    private void checkCriticalFolder(String folder){
+        File folderFile = launcherFolderPath.resolve(folder).toFile();
+        if (!folderFile.exists() && !folderFile.mkdir()){
+            logger.error("Error making " + folder + " folder.");
+        }
     }
 
 }

@@ -12,7 +12,6 @@ import java.util.Optional;
 
 public class Main {
     public static void main(String[] args) {
-
         LauncherData launcherData = new LauncherData("JNLauncher",
                 "1.0",
                 Path.of("C:/"));

@@ -22,16 +22,16 @@ public class ProfilesController {
         this.profilesPath = profilesPath;
     }
 
+    public HashMap<String, Profile> getLoadedProfiles(){
+        return loadedProfiles;
+    }
+
     public void loadProfiles(){
         Set<Path> directories = getDirectories(profilesPath);
         for (Path directory : directories) {
             String id = directory.getFileName().toString();
             loadedProfiles.put(id, new Profile(id, directory));
         }
-    }
-
-    public HashMap<String, Profile> getLoadedProfiles(){
-        return loadedProfiles;
     }
 
     private Set<Path> getDirectories(Path path){

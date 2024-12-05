@@ -116,23 +116,23 @@ public class Installer {
         }
     }
 
-    protected Natives getNatives(String path){
-        if (path.contains("windows")){
-            if (path.contains("64")){
+    protected Natives getNatives(String nativeStr){
+        if (nativeStr.contains("windows")){
+            if (nativeStr.contains("64")){
                 return Natives.WIN64;
             }
-            if (path.contains("86")){
+            if (nativeStr.contains("86")){
                 return Natives.WIN86;
             }
             return Natives.WIN;
         }
-        if (path.contains("macos") || path.contains("osx")){
-            if (path.contains("64")){
+        if (nativeStr.contains("macos") || nativeStr.contains("osx")){
+            if (nativeStr.contains("64")){
                 return Natives.OSX64;
             }
             return Natives.OSX;
         }
-        if(path.contains("linux")){
+        if(nativeStr.contains("linux")){
             return Natives.LINUX;
         }
         return Natives.NONE;

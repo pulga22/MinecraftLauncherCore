@@ -4,7 +4,7 @@ import me.julionxn.CoreLogger;
 import me.julionxn.ProgressCallback;
 import me.julionxn.data.DataController;
 import me.julionxn.files.SystemController;
-import me.julionxn.versions.loaders.FabricLoader;
+import me.julionxn.versions.loaders.Loader;
 
 import java.util.Optional;
 
@@ -25,8 +25,8 @@ public class VersionsController {
         return installVersion(minecraftVersion, callback);
     }
 
-    public Optional<MinecraftVersion> installVersion(String version, FabricLoader fabricLoader, ProgressCallback callback){
-        MinecraftVersion minecraftVersion = new MinecraftVersion(version, fabricLoader);
+    public Optional<MinecraftVersion> installVersion(String version, Loader loader, ProgressCallback callback){
+        MinecraftVersion minecraftVersion = new MinecraftVersion(version, loader);
         return installVersion(minecraftVersion, callback);
     }
 
@@ -35,7 +35,10 @@ public class VersionsController {
         if (loaded){
             logger.info("Metadata of version " + minecraftVersion.getVersion() + " loaded successfully.");
             VersionInstaller installer = new VersionInstaller(logger, minecraftVersion, systemController, dataController, callback);
-            installer.install();
+            boolean success = installer.install();
+            if (!success){
+                return Optional.empty();
+            }
             logger.info("Version " + minecraftVersion.getVersion() + " installed.");
             return Optional.of(minecraftVersion);
         } else {

@@ -45,57 +45,182 @@ public class VersionInstaller extends Installer {
         this.callback = callback;
     }
 
-    public void install(){
-        //assets
-        installAssets();
-        //libraries
-        installLibraries();
-        //runtime
-        installRuntime();
-        //clientJar
-        installClientJar();
-        //Loader
-        Loader loader = minecraftVersion.getLoader();
-        if (loader != null){
-            LoaderInstaller loaderInstaller = loader.getInstaller();
-            loaderInstaller.install(logger, loader, minecraftVersion, dataController, osName, natives, callback);
+    public boolean install(){
+        if (installAssets() &&
+            installLibraries() &&
+            installRuntime() &&
+            installClientJar()){
+            Loader loader = minecraftVersion.getLoader();
+            if (loader != null){
+                LoaderInstaller loaderInstaller = loader.getInstaller();
+                return loaderInstaller.install(logger, loader, minecraftVersion, dataController, osName, natives, callback);
+            } else {
+                return true;
+            }
+
         }
+        return false;
     }
 
-    private void installClientJar(){
-        String status = "Installing ClientJar";
+    private boolean installAssets(){
+        String status = "Installing Assets";
         callback.onProgress(status, 0);
-        VersionJarInfo versionJarInfo = minecraftVersion.getVersionJarInfo();
-        String version = minecraftVersion.getVersion();
-        JsonObject versionData = minecraftVersion.getVersionData();
-        String sha1 = versionJarInfo.sha1();
-        int size = versionJarInfo.size();
-        URL url = versionJarInfo.url();
-        Optional<File> clientJarFileOpt = dataController.prepareVersionJarFile(version);
-        if (clientJarFileOpt.isEmpty()) return;
-        File clientJarFile = clientJarFileOpt.get();
-        DownloadStatus downloadStatus = downloadAndCheckFile("ClientJar", url, sha1, size, clientJarFile, () -> {
-            installClientJar();
-            return DownloadStatus.OK;
-        });
-        callback.onProgress(status, 0.5f);
-        if (downloadStatus != DownloadStatus.OK){
-            logger.error("Failed to download Client Jar. Code: " + downloadStatus + ".");
+        AssetIndexInfo assetIndexInfo = minecraftVersion.getAssetIndexInfo();
+        JsonObject assetData = assetIndexInfo.assetIndexData();
+        String assetId = assetIndexInfo.id();
+        addAssetIndex(assetId, assetData);
+        JsonObject objects = assetData.get("objects").getAsJsonObject();
+        URI resourcesURI;
+        try {
+            resourcesURI = new URI(RESOURCES_URL);
+        } catch (URISyntaxException e) {
+            logger.error("Error getting URL " + RESOURCES_URL + ".", e);
+            return false;
+        }
+        Set<Map.Entry<String, JsonElement>> entries = objects.entrySet();
+        int totalEntries = entries.size();
+        int entriesDone = 0;
+        for (Map.Entry<String, JsonElement> objectEntry : entries) {
+            JsonObject object = objectEntry.getValue().getAsJsonObject();
+            String hash = object.get("hash").getAsString();
+            int size = object.get("size").getAsInt();
+            URL objectUrl;
+            try {
+                objectUrl = resourcesURI.resolve(hash.substring(0, 2) + "/").resolve(hash).toURL();
+            } catch (MalformedURLException e) {
+                logger.error("Malformed URL: ", e);
+                entriesDone++;
+                callback.onProgress(status, (float) entriesDone / totalEntries);
+                continue;
+            }
+            downloadAssetObject(objectUrl, hash, size);
+            entriesDone++;
+            callback.onProgress(status, (float) entriesDone / totalEntries);
+        }
+        return true;
+    }
+
+    private void addAssetIndex(String id, JsonObject assetData){
+        Optional<File> assetIndexFileOpt = this.dataController.prepareAssetIndexFile(id);
+        if (assetIndexFileOpt.isEmpty()) {
+            logger.error("Error saving assetIndexFile.");
             return;
         }
-        Optional<File> clientJarManifestFileOpt = dataController.prepareVersionManifestFile(version);
-        if (clientJarManifestFileOpt.isEmpty()) return;
-        File clientJarManifestFile = clientJarManifestFileOpt.get();
-        String versionContent = versionData.toString();
+        File assetIndexFile = assetIndexFileOpt.get();
         try {
-            Files.write(clientJarManifestFile.toPath(), versionContent.getBytes());
-            callback.onProgress(status, 1);
+            Files.write(assetIndexFile.toPath(), assetData.toString().getBytes());
         } catch (IOException e) {
-            logger.error("Error writing VersionJar to " + clientJarManifestFile.getPath(), e);
+            throw new RuntimeException(e);
         }
     }
 
-    private void installRuntime(){
+    private void downloadAssetObject(URL url, String hash, int expectedSize) {
+        Optional<File> outputFileOptional = dataController.prepareAssetObjectFile(hash);
+        if (outputFileOptional.isEmpty()){
+            logger.error("Error preparing " + hash + " asset file.");
+            return;
+        }
+        File outputFile = outputFileOptional.get();
+        downloadAndCheckFile("Asset Object", url, hash, expectedSize, outputFile, () -> {
+            downloadAssetObject(url, hash, expectedSize);
+            return DownloadStatus.OK;
+        });
+    }
+
+    private boolean installLibraries(){
+        String status = "Installing Libraries";
+        callback.onProgress(status, 0);
+        JsonArray libraries = minecraftVersion.getLibraries();
+        int totalLibraries = libraries.size();
+        int librariesDone = 0;
+        for (JsonElement library : libraries) {
+            JsonObject downloads = library.getAsJsonObject().get("downloads").getAsJsonObject();
+            JsonElement rulesElement = library.getAsJsonObject().get("rules");
+            if (rulesElement != null) {
+                JsonArray rules = rulesElement.getAsJsonArray();
+                boolean breakLibrary = false;
+                for (JsonElement ruleElement : rules) {
+                    String libraryOs = ruleElement.getAsJsonObject().get("os").getAsJsonObject().get("name").getAsString();
+                    if (libraryOs == null || !libraryOs.equals(osName)){
+                        breakLibrary = true;
+                    }
+                }
+                if (breakLibrary) {
+                    librariesDone++;
+                    callback.onProgress(status, (float) librariesDone / totalLibraries);
+                    continue;
+                }
+            }
+            for (Map.Entry<String, JsonElement> downloadEntry : downloads.entrySet()) {
+                JsonObject download = downloadEntry.getValue().getAsJsonObject();
+                String path = download.get("path").getAsString();
+                String url = download.get("url").getAsString();
+                String hash = download.get("sha1").getAsString();
+                int size = download.get("size").getAsInt();
+                URL artifactUrl;
+                try{
+                    artifactUrl = new URL(url);
+                } catch (MalformedURLException e) {
+                    logger.error("Error getting URL " + url + ".", e);
+                    librariesDone++;
+                    callback.onProgress(status, (float) librariesDone / totalLibraries);
+                    return false;
+                }
+                Optional<File> file = downloadLibraryArtifact(artifactUrl, path, hash, size);
+                if (!path.contains("natives") || file.isEmpty()) continue;
+                Natives fileNatives = getNatives(path);
+                if (fileNatives == natives){
+                    extractNatives(minecraftVersion.getVersion(), file.get());
+                }
+            }
+            librariesDone++;
+            callback.onProgress(status, (float) librariesDone / totalLibraries);
+        }
+        return true;
+    }
+
+    private Optional<File> downloadLibraryArtifact(URL url, String path, String hash, int expectedSize){
+        Optional<File> outputFileOptional = dataController.prepareLibraryFile(path);
+        if (outputFileOptional.isEmpty()){
+            logger.error("Error preparing " + path + " library.");
+            return Optional.empty();
+        }
+        File outputFile = outputFileOptional.get();
+        downloadAndCheckFile("Library", url, hash, expectedSize, outputFile, () -> {
+            downloadLibraryArtifact(url, path, hash, expectedSize);
+            return DownloadStatus.OK;
+        });
+        return Optional.of(outputFile);
+    }
+
+    private void extractNatives(String version, File file){
+        Path nativesFolder = dataController.prepareNativesFolder(version);
+        try (JarFile jar = new JarFile(file)) {
+            Enumeration<JarEntry> entries = jar.entries();
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+                String entryName = entry.getName();
+                if (entryName.endsWith(".dll") || entryName.endsWith(".dylib") || entryName.endsWith(".so")) {
+                    String fileName = Paths.get(entryName).getFileName().toString();
+                    Path outputPath = nativesFolder.resolve(fileName);
+                    Files.createDirectories(outputPath.getParent());
+                    try (InputStream inputStream = jar.getInputStream(entry);
+                         OutputStream outputStream = new FileOutputStream(outputPath.toFile())) {
+                        byte[] buffer = new byte[1024];
+                        int length;
+                        while ((length = inputStream.read(buffer)) > 0) {
+                            outputStream.write(buffer, 0, length);
+                        }
+                    }
+                    logger.info("Natives extracted from " + fileName + ".");
+                }
+            }
+        } catch (IOException e) {
+            logger.error("Error extracting natives", e);
+        }
+    }
+
+    private boolean installRuntime(){
         String status = "Installing Runtime";
         callback.onProgress(status, 0);
         RuntimeComponentInfo runtimeComponentInfo = minecraftVersion.getRuntimeComponentInfo();
@@ -122,6 +247,7 @@ public class VersionInstaller extends Installer {
             entriesDone++;
             callback.onProgress(status, (float) entriesDone / totalEntries);
         }
+        return true;
     }
 
     private void downloadRuntimeFile(File file, String key, String type, JsonObject data){
@@ -176,33 +302,6 @@ public class VersionInstaller extends Installer {
         }
     }
 
-    private Optional<File> downloadLibraryArtifact(URL url, String path, String hash, int expectedSize){
-        Optional<File> outputFileOptional = dataController.prepareLibraryFile(path);
-        if (outputFileOptional.isEmpty()){
-            logger.error("Error preparing " + path + " library.");
-            return Optional.empty();
-        }
-        File outputFile = outputFileOptional.get();
-        downloadAndCheckFile("Library", url, hash, expectedSize, outputFile, () -> {
-            downloadLibraryArtifact(url, path, hash, expectedSize);
-            return DownloadStatus.OK;
-        });
-        return Optional.of(outputFile);
-    }
-
-    private void downloadAssetObject(URL url, String hash, int expectedSize) {
-        Optional<File> outputFileOptional = dataController.prepareAssetObjectFile(hash);
-        if (outputFileOptional.isEmpty()){
-            logger.error("Error preparing " + hash + " asset file.");
-            return;
-        }
-        File outputFile = outputFileOptional.get();
-        downloadAndCheckFile("Asset Object", url, hash, expectedSize, outputFile, () -> {
-            downloadAssetObject(url, hash, expectedSize);
-            return DownloadStatus.OK;
-        });
-    }
-
     private List<Map.Entry<String, JsonElement>> getSortedArray(JsonObject files) {
         Set<Map.Entry<String, JsonElement>> entrySet = files.entrySet();
         List<Map.Entry<String, JsonElement>> sortedEntries = new ArrayList<>(entrySet);
@@ -210,133 +309,41 @@ public class VersionInstaller extends Installer {
         return sortedEntries;
     }
 
-    private void installLibraries(){
-        String status = "Installing Libraries";
+    private boolean installClientJar(){
+        String status = "Installing ClientJar";
         callback.onProgress(status, 0);
-        JsonArray libraries = minecraftVersion.getLibraries();
-        int totalLibraries = libraries.size();
-        int librariesDone = 0;
-        for (JsonElement library : libraries) {
-            JsonObject downloads = library.getAsJsonObject().get("downloads").getAsJsonObject();
-            JsonElement rulesElement = library.getAsJsonObject().get("rules");
-            if (rulesElement != null) {
-                JsonArray rules = rulesElement.getAsJsonArray();
-                boolean breakLibrary = false;
-                for (JsonElement ruleElement : rules) {
-                    String libraryOs = ruleElement.getAsJsonObject().get("os").getAsJsonObject().get("name").getAsString();
-                    if (libraryOs == null || !libraryOs.equals(osName)){
-                        breakLibrary = true;
-                    }
-                }
-                if (breakLibrary) {
-                    librariesDone++;
-                    callback.onProgress(status, (float) librariesDone / totalLibraries);
-                    continue;
-                }
+        VersionJarInfo versionJarInfo = minecraftVersion.getVersionJarInfo();
+        String version = minecraftVersion.getVersion();
+        JsonObject versionData = minecraftVersion.getVersionData();
+        String sha1 = versionJarInfo.sha1();
+        int size = versionJarInfo.size();
+        URL url = versionJarInfo.url();
+        Optional<File> clientJarFileOpt = dataController.prepareVersionJarFile(version);
+        if (clientJarFileOpt.isEmpty()) return false;
+        File clientJarFile = clientJarFileOpt.get();
+        DownloadStatus downloadStatus = downloadAndCheckFile("ClientJar", url, sha1, size, clientJarFile, () -> {
+            installClientJar();
+            return DownloadStatus.OK;
+        });
+        callback.onProgress(status, 0.5f);
+        if (downloadStatus != DownloadStatus.OK){
+            logger.error("Failed to download Client Jar. Code: " + downloadStatus + ".");
+            if (downloadStatus != DownloadStatus.ALREADY_EXISTS){
+                return false;
             }
-            for (Map.Entry<String, JsonElement> downloadEntry : downloads.entrySet()) {
-                JsonObject download = downloadEntry.getValue().getAsJsonObject();
-                String path = download.get("path").getAsString();
-                String url = download.get("url").getAsString();
-                String hash = download.get("sha1").getAsString();
-                int size = download.get("size").getAsInt();
-                URL artifactUrl;
-                try{
-                    artifactUrl = new URL(url);
-                } catch (MalformedURLException e) {
-                    logger.error("Error getting URL " + url + ".", e);
-                    librariesDone++;
-                    callback.onProgress(status, (float) librariesDone / totalLibraries);
-                    continue;
-                }
-                Optional<File> file = downloadLibraryArtifact(artifactUrl, path, hash, size);
-                if (!path.contains("natives") || file.isEmpty()) continue;
-                Natives fileNatives = getNatives(path);
-                if (fileNatives == natives){
-                    extractNatives(minecraftVersion.getVersion(), file.get());
-                }
-            }
-            librariesDone++;
-            callback.onProgress(status, (float) librariesDone / totalLibraries);
         }
-    }
-
-    private void extractNatives(String version, File file){
-        Path nativesFolder = dataController.prepareNativesFolder(version);
-        try (JarFile jar = new JarFile(file)) {
-            Enumeration<JarEntry> entries = jar.entries();
-            while (entries.hasMoreElements()) {
-                JarEntry entry = entries.nextElement();
-                String entryName = entry.getName();
-                if (entryName.endsWith(".dll") || entryName.endsWith(".dylib") || entryName.endsWith(".so")) {
-                    String fileName = Paths.get(entryName).getFileName().toString();
-                    Path outputPath = nativesFolder.resolve(fileName);
-                    Files.createDirectories(outputPath.getParent());
-                    try (InputStream inputStream = jar.getInputStream(entry);
-                         OutputStream outputStream = new FileOutputStream(outputPath.toFile())) {
-                        byte[] buffer = new byte[1024];
-                        int length;
-                        while ((length = inputStream.read(buffer)) > 0) {
-                            outputStream.write(buffer, 0, length);
-                        }
-                    }
-                    logger.info("Natives extracted from " + fileName + ".");
-                }
-            }
-        } catch (IOException e) {
-            logger.error("Error extracting natives", e);
-        }
-    }
-
-    private void installAssets(){
-        String status = "Installing Assets";
-        callback.onProgress(status, 0);
-        AssetIndexInfo assetIndexInfo = minecraftVersion.getAssetIndexInfo();
-        JsonObject assetData = assetIndexInfo.assetIndexData();
-        String assetId = assetIndexInfo.id();
-        addAssetIndex(assetId, assetData);
-        JsonObject objects = assetData.get("objects").getAsJsonObject();
-        URI resourcesURI;
+        Optional<File> clientJarManifestFileOpt = dataController.prepareVersionManifestFile(version);
+        if (clientJarManifestFileOpt.isEmpty()) return false;
+        File clientJarManifestFile = clientJarManifestFileOpt.get();
+        String versionContent = versionData.toString();
         try {
-            resourcesURI = new URI(RESOURCES_URL);
-        } catch (URISyntaxException e) {
-            logger.error("Error getting URL " + RESOURCES_URL + ".", e);
-            return;
-        }
-        Set<Map.Entry<String, JsonElement>> entries = objects.entrySet();
-        int totalEntries = entries.size();
-        int entriesDone = 0;
-        for (Map.Entry<String, JsonElement> objectEntry : entries) {
-            JsonObject object = objectEntry.getValue().getAsJsonObject();
-            String hash = object.get("hash").getAsString();
-            int size = object.get("size").getAsInt();
-            URL objectUrl;
-            try {
-                objectUrl = resourcesURI.resolve(hash.substring(0, 2) + "/").resolve(hash).toURL();
-            } catch (MalformedURLException e) {
-                logger.error("Malformed URL: ", e);
-                entriesDone++;
-                callback.onProgress(status, (float) entriesDone / totalEntries);
-                continue;
-            }
-            downloadAssetObject(objectUrl, hash, size);
-            entriesDone++;
-            callback.onProgress(status, (float) entriesDone / totalEntries);
-        }
-    }
-
-    private void addAssetIndex(String id, JsonObject assetData){
-        Optional<File> assetIndexFileOpt = this.dataController.prepareAssetIndexFile(id);
-        if (assetIndexFileOpt.isEmpty()) {
-            logger.error("Error saving assetIndexFile.");
-            return;
-        }
-        File assetIndexFile = assetIndexFileOpt.get();
-        try {
-            Files.write(assetIndexFile.toPath(), assetData.toString().getBytes());
+            Files.write(clientJarManifestFile.toPath(), versionContent.getBytes());
+            callback.onProgress(status, 1);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            logger.error("Error writing VersionJar to " + clientJarManifestFile.getPath(), e);
+            return false;
         }
+        return true;
     }
 
 }

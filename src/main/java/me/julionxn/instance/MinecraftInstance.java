@@ -34,10 +34,9 @@ public class MinecraftInstance {
     }
 
     public void run(){
-        ArgumentBuilder argumentBuilder = new ArgumentBuilder(this);
-        String cmd = argumentBuilder.buildCommand();
-        System.out.println(cmd);
-
+        CommandBuilder commandBuilder = new CommandBuilder(this);
+        String cmd = commandBuilder.buildCommand();
+        logger.info(cmd);
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(cmd.split(" "));
             processBuilder.redirectErrorStream(true);

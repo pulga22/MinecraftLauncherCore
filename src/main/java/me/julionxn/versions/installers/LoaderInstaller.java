@@ -19,7 +19,7 @@ import java.util.Optional;
 
 public abstract class LoaderInstaller extends Installer {
 
-    public abstract void install(CoreLogger logger, Loader loader, MinecraftVersion minecraftVersion, DataController dataController, String osName, Natives natives, ProgressCallback callback);
+    public abstract boolean install(CoreLogger logger, Loader loader, MinecraftVersion minecraftVersion, DataController dataController, String osName, Natives natives, ProgressCallback callback);
 
     public abstract List<String> getJVMArgs();
 

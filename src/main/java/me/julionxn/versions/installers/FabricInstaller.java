@@ -36,7 +36,7 @@ public class FabricInstaller extends LoaderInstaller {
     private List<Library> libraries;
 
     @Override
-    public void install(CoreLogger logger, Loader loader, MinecraftVersion minecraftVersion, DataController dataController, String osName, Natives natives, ProgressCallback callback) {
+    public boolean install(CoreLogger logger, Loader loader, MinecraftVersion minecraftVersion, DataController dataController, String osName, Natives natives, ProgressCallback callback) {
         String fabricLoaderVersion = loader.getVersion();
         TempFolder tempFolder = dataController.prepareTempFolder();
         Path tempFolderPath = tempFolder.path();
@@ -48,7 +48,7 @@ public class FabricInstaller extends LoaderInstaller {
         Path versionDataPath = tempFolderPath.resolve("versions")
                 .resolve(versionLoader).resolve(versionLoader + ".json");
         Optional<JsonObject> versionDataOpt = loadJson(versionDataPath);
-        if (versionDataOpt.isEmpty()) return;
+        if (versionDataOpt.isEmpty()) return false;
         JsonObject versionData = versionDataOpt.get();
         minecraftVersion.setMainClass(versionData.get("mainClass").getAsString());
         JsonObject args = versionData.getAsJsonObject("arguments");
@@ -58,28 +58,7 @@ public class FabricInstaller extends LoaderInstaller {
             JVMArgs.add(arg);
         }
         tempFolder.close().run();
-    }
-
-    private List<Library> parseLibraries(CoreLogger logger, Path librariesPath, Path finalLibrariesPath){
-        Path baseDir = librariesPath.getParent();
-        Path targetDir = finalLibrariesPath.getParent();
-        Set<Path> paths; 
-        try (Stream<Path> jarFiles = Files.walk(librariesPath)) {
-             paths = jarFiles.filter(path -> path.toString().endsWith(".jar"))
-                    .map(path -> {
-                        Path relativePath = baseDir.relativize(path);
-                        return targetDir.resolve(relativePath);
-                    }).collect(Collectors.toSet());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        List<Library> fabricLibraries = new ArrayList<>();
-        for (Path path : paths) {
-            String version = path.getParent().getFileName().toString();
-            String artifact = path.getParent().getParent().getFileName().toString();
-            fabricLibraries.add(new Library(artifact, version, path));
-        }
-        return fabricLibraries;
+        return true;
     }
 
     private void downloadFabricFiles(CoreLogger logger, MinecraftVersion minecraftVersion, DataController dataController, Path tempFolderPath, String fabricLoaderVersion){
@@ -145,6 +124,28 @@ public class FabricInstaller extends LoaderInstaller {
             logger.error("Error while fetching Maven Metadata " + FABRIC_INSTALLER_MAVEN_URL + ".", e);
             return Optional.empty();
         }
+    }
+
+    private List<Library> parseLibraries(CoreLogger logger, Path librariesPath, Path finalLibrariesPath){
+        Path baseDir = librariesPath.getParent();
+        Path targetDir = finalLibrariesPath.getParent();
+        Set<Path> paths;
+        try (Stream<Path> jarFiles = Files.walk(librariesPath)) {
+             paths = jarFiles.filter(path -> path.toString().endsWith(".jar"))
+                    .map(path -> {
+                        Path relativePath = baseDir.relativize(path);
+                        return targetDir.resolve(relativePath);
+                    }).collect(Collectors.toSet());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        List<Library> fabricLibraries = new ArrayList<>();
+        for (Path path : paths) {
+            String version = path.getParent().getFileName().toString();
+            String artifact = path.getParent().getParent().getFileName().toString();
+            fabricLibraries.add(new Library(artifact, version, path));
+        }
+        return fabricLibraries;
     }
 
     @Override

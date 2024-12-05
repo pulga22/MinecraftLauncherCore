@@ -9,7 +9,6 @@ public class FabricLoader extends Loader {
 
     public FabricLoader(String version) {
         super(version);
-        loader = LoaderType.FABRIC;
     }
 
     @Override
