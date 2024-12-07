@@ -1,13 +1,17 @@
-package me.julionxn.versions;
+package me.julionxn.version;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import me.julionxn.CoreLogger;
 import me.julionxn.ProgressCallback;
-import me.julionxn.files.Natives;
-import me.julionxn.files.SystemController;
-import me.julionxn.versions.loaders.Loader;
+import me.julionxn.system.Natives;
+import me.julionxn.system.SystemController;
+import me.julionxn.version.data.AssetIndexInfo;
+import me.julionxn.version.data.RuntimeComponentInfo;
+import me.julionxn.version.data.VersionJarInfo;
+import me.julionxn.version.loaders.Loader;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -19,7 +23,7 @@ public class MinecraftVersion {
     private static final String VERSIONS_MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
     private static final String RUNTIMES_MANIFEST_URL = "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
     private final String version;
-    private final Loader loader;
+    private final @Nullable Loader loader;
     private VersionType versionType;
     private JsonObject versionData;
     private AssetIndexInfo assetIndexInfo;
@@ -28,7 +32,7 @@ public class MinecraftVersion {
     private RuntimeComponentInfo runtimeComponentInfo;
     private String mainClass;
 
-    public MinecraftVersion(String version, Loader loader){
+    public MinecraftVersion(String version, @Nullable Loader loader){
         this.version = version;
         this.loader = loader;
     }
@@ -251,6 +255,7 @@ public class MinecraftVersion {
         return runtimeComponentInfo;
     }
 
+    @Nullable
     public Loader getLoader() {
         return loader;
     }

@@ -1,6 +1,7 @@
 package me.julionxn.data;
 
 import me.julionxn.CoreLogger;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -81,18 +82,28 @@ public class DataController {
         return Optional.of(libraryFile);
     }
 
-    public Path prepareNativesFolder(String version){
+    public Optional<Path> prepareNativesFolder(String version){
         Path folder = nativesPath.resolve(version);
-        folder.toFile().mkdir();
-        logger.info("Preparing Natives Folder " + version + ".");
-        return folder;
+        File file = folder.toFile();
+        if (!file.exists() && !file.mkdir()) {
+            logger.info("Error while preparing Native Folder " + version + ".");
+            return Optional.empty();
+        } else {
+            logger.info("Preparing Natives Folder " + version + ".");
+            return Optional.of(folder);
+        }
     }
 
-    public Path prepareRuntimeFolder(String name){
+    public Optional<Path> prepareRuntimeFolder(String name){
         Path folder = runtimesPath.resolve(name);
-        folder.toFile().mkdir();
-        logger.info("Preparing Runtime Folder " + name + ".");
-        return folder;
+        File file = folder.toFile();
+        if (!file.exists() && !file.mkdir()) {
+            logger.error("Error while preparing Runtimes Folder " + name + ".");
+            return Optional.empty();
+        } else {
+            logger.info("Preparing Runtime Folder " + name + ".");
+            return Optional.of(folder);
+        }
     }
 
     public Optional<Path> prepareVersionFolder(String version){
@@ -134,30 +145,29 @@ public class DataController {
             try {
                 deleteDirectory(folder);
                 logger.info("Deleting temp folder " + folder);
-                tempPath.toFile().mkdir();
+                File file = tempPath.toFile();
+                if (!file.exists() && !file.mkdir()) {
+                    logger.error("Failed to prepare Temp Folder " + tempPath + ".");
+                }
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                logger.error("Failed to delete Temp Folder " + folder + ".");
             }
         };
         return new TempFolder(folder, delete);
-    }
-
-    public File prepareFile(Path path){
-        return path.toFile();
     }
 
     private void deleteDirectory(Path path) throws IOException {
         if (Files.exists(path)) {
             Files.walkFileTree(path, new SimpleFileVisitor<>() {
                 @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    Files.delete(file); // Delete each file
+                public @NotNull FileVisitResult visitFile(Path file, @NotNull BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                    Files.delete(dir); // Delete directory after its contents
+                public @NotNull FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    Files.delete(dir);
                     return FileVisitResult.CONTINUE;
                 }
             });

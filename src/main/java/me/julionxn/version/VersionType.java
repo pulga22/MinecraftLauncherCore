@@ -1,4 +1,4 @@
-package me.julionxn.versions;
+package me.julionxn.version;
 
 public enum VersionType {
     RELEASE, SNAPSHOT, MODDED;

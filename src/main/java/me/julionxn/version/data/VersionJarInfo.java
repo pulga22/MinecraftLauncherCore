@@ -1,4 +1,4 @@
-package me.julionxn.versions;
+package me.julionxn.version.data;
 
 import java.net.URL;
 

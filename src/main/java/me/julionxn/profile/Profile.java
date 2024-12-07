@@ -1,4 +1,4 @@
-package me.julionxn.profiles;
+package me.julionxn.profile;
 
 import java.nio.file.Path;
 

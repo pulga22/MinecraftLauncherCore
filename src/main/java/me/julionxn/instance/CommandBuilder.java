@@ -5,14 +5,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import me.julionxn.LauncherData;
 import me.julionxn.data.DataController;
-import me.julionxn.files.Natives;
-import me.julionxn.files.SystemController;
-import me.julionxn.profiles.Profile;
-import me.julionxn.versions.FetchingUtils;
-import me.julionxn.versions.Library;
-import me.julionxn.versions.MinecraftVersion;
-import me.julionxn.versions.RuntimeComponentInfo;
-import me.julionxn.versions.loaders.Loader;
+import me.julionxn.profile.Profile;
+import me.julionxn.system.Natives;
+import me.julionxn.system.SystemController;
+import me.julionxn.version.FetchingUtils;
+import me.julionxn.version.MinecraftVersion;
+import me.julionxn.version.data.Library;
+import me.julionxn.version.data.RuntimeComponentInfo;
+import me.julionxn.version.loaders.Loader;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -38,8 +38,8 @@ public class CommandBuilder {
         this.profile = instance.getProfile();
         this.playerInfo = instance.getPlayerInfo();
     }
-
-    public String buildCommand(){
+    
+    public String build(){
         List<String> command = new ArrayList<>();
         JsonObject versionManifest = minecraftVersion.getVersionData();
         //Java Path
@@ -109,7 +109,9 @@ public class CommandBuilder {
         Loader loader = minecraftVersion.getLoader();
         if (loader != null){
             List<String> jvmLoaderArgs = loader.getInstaller().getJVMArgs();
-            command.addAll(jvmLoaderArgs);
+            if (jvmLoaderArgs != null){
+                command.addAll(jvmLoaderArgs);
+            }
         }
     }
 
@@ -155,7 +157,9 @@ public class CommandBuilder {
         Loader loader = minecraftVersion.getLoader();
         if (loader != null){
             List<Library> loaderLibraries = loader.getInstaller().getLibraries();
-            vanillaLibraries.addAll(loaderLibraries);
+            if (loaderLibraries != null){
+                vanillaLibraries.addAll(loaderLibraries);
+            }
         }
         for (JsonElement library : libraries) {
             if (library.getAsJsonObject().has("rules")){

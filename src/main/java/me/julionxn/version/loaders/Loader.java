@@ -1,6 +1,7 @@
-package me.julionxn.versions.loaders;
+package me.julionxn.version.loaders;
 
-import me.julionxn.versions.installers.LoaderInstaller;
+import me.julionxn.version.installers.LoaderInstaller;
+import org.jetbrains.annotations.NotNull;
 
 public abstract class Loader {
 
@@ -14,6 +15,6 @@ public abstract class Loader {
         return version;
     }
 
-    public abstract LoaderInstaller getInstaller();
+    public abstract @NotNull LoaderInstaller getInstaller();
 
 }

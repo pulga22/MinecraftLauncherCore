@@ -4,9 +4,9 @@ import me.julionxn.CoreLogger;
 import me.julionxn.Launcher;
 import me.julionxn.LauncherData;
 import me.julionxn.data.DataController;
-import me.julionxn.files.SystemController;
-import me.julionxn.profiles.Profile;
-import me.julionxn.versions.MinecraftVersion;
+import me.julionxn.profile.Profile;
+import me.julionxn.system.SystemController;
+import me.julionxn.version.MinecraftVersion;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -35,7 +35,7 @@ public class MinecraftInstance {
 
     public void run(){
         CommandBuilder commandBuilder = new CommandBuilder(this);
-        String cmd = commandBuilder.buildCommand();
+        String cmd = commandBuilder.build();
         logger.info(cmd);
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(cmd.split(" "));

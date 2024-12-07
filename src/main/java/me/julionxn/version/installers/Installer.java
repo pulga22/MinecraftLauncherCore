@@ -1,6 +1,6 @@
-package me.julionxn.versions.installers;
+package me.julionxn.version.installers;
 
-import me.julionxn.files.Natives;
+import me.julionxn.system.Natives;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -11,7 +11,7 @@ import java.util.concurrent.Callable;
 
 public class Installer {
 
-    protected DownloadStatus downloadAndCheckFile(String type, URL url, String hash, int expectedSize, File outputFile, Callable<DownloadStatus> onRedownload){
+    protected DownloadStatus downloadAndCheckFile(URL url, String hash, int expectedSize, File outputFile, Callable<DownloadStatus> onRedownload){
         if (outputFile.exists()){
             String fileHash = getSHA1Hash(outputFile);
             if (!hash.equals(fileHash)){
@@ -43,14 +43,7 @@ public class Installer {
             if (contentLength != expectedSize) {
                 return DownloadStatus.SIZE_MISSMATCH;
             }
-            try (InputStream inputStream = connection.getInputStream();
-                 FileOutputStream outputStream = new FileOutputStream(outputFile)) {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
-            }
+            writeToFileFromConnection(connection, outputFile);
             String outputFileHash = getSHA1Hash(outputFile);
             if (outputFileHash == null || !outputFileHash.equals(hash)){
                 return DownloadStatus.HASH_MISSMATCH;
@@ -74,14 +67,7 @@ public class Installer {
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 return DownloadStatus.HTTP_ERROR;
             }
-            try (InputStream inputStream = connection.getInputStream();
-                 FileOutputStream outputStream = new FileOutputStream(outputFile)) {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
-            }
+            writeToFileFromConnection(connection, outputFile);
             return DownloadStatus.OK;
         } catch (IOException e) {
             return DownloadStatus.ERROR;
@@ -92,7 +78,16 @@ public class Installer {
         }
     }
 
-
+    public void writeToFileFromConnection(HttpURLConnection connection, File outputFile) throws IOException {
+        try (InputStream inputStream = connection.getInputStream();
+             FileOutputStream outputStream = new FileOutputStream(outputFile)) {
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+        }
+    }
 
     protected String getSHA1Hash(File file) {
         try {

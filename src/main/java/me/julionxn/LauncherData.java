@@ -8,4 +8,8 @@ public record LauncherData(String launcherName, String launcherVersion, Path roo
         this(launcherName, launcherVersion, Path.of(rootPath));
     }
 
+    public LauncherData(String launcherName, String launcherVersion) {
+        this(launcherName, launcherVersion, Path.of(System.getProperty("user.home")));
+    }
+
 }

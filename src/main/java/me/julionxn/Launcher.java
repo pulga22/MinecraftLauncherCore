@@ -2,9 +2,9 @@ package me.julionxn;
 
 import me.julionxn.cache.CacheController;
 import me.julionxn.data.DataController;
-import me.julionxn.files.SystemController;
-import me.julionxn.profiles.ProfilesController;
-import me.julionxn.versions.VersionsController;
+import me.julionxn.profile.ProfilesController;
+import me.julionxn.system.SystemController;
+import me.julionxn.version.VersionsController;
 
 import java.nio.file.Path;
 
@@ -23,12 +23,15 @@ public class Launcher {
         Path launcherPath = launcherData.rootPath().resolve(launcherData.launcherName());
         this.logger = new CoreLogger(launcherData);
         this.systemController = new SystemController(logger, launcherData);
-        this.systemController.initialize();
         this.profilesController = new ProfilesController(logger, launcherPath.resolve("profiles"));
-        this.profilesController.loadProfiles();
         this.dataController = new DataController(logger, launcherPath.resolve("data"));
         this.versionsController = new VersionsController(logger, systemController, dataController);
         this.cacheController = new CacheController(logger, launcherPath.resolve("cache"));
+    }
+
+    public void start(){
+        this.systemController.initialize();
+        this.profilesController.loadProfiles();
     }
 
     public ProfilesController getProfilesController(){

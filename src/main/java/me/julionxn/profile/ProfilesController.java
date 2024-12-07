@@ -1,4 +1,4 @@
-package me.julionxn.profiles;
+package me.julionxn.profile;
 
 import me.julionxn.CoreLogger;
 
@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,18 +44,19 @@ public class ProfilesController {
         }
     }
 
-    public Profile getProfile(String id){
+    public Optional<Profile> getProfile(String id){
         if (loadedProfiles.containsKey(id)){
-            return loadedProfiles.get(id);
+            return Optional.ofNullable(loadedProfiles.get(id));
         }
         Path profilePath = profilesPath.resolve(id);
         File profileFile = profilePath.toFile();
         if (!profileFile.exists() && !profileFile.mkdir()){
             logger.error("Error making profile " + id + " folder.");
+            return Optional.empty();
         }
         Profile profile = new Profile(id, profilePath);
         loadedProfiles.put(id, profile);
-        return profile;
+        return Optional.of(profile);
     }
 
 }

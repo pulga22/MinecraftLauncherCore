@@ -1,10 +1,10 @@
-package me.julionxn.versions;
+package me.julionxn.version;
 
 import me.julionxn.CoreLogger;
 import me.julionxn.ProgressCallback;
 import me.julionxn.data.DataController;
-import me.julionxn.files.SystemController;
-import me.julionxn.versions.loaders.Loader;
+import me.julionxn.system.SystemController;
+import me.julionxn.version.loaders.Loader;
 
 import java.util.Optional;
 

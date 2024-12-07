@@ -1,7 +1,8 @@
-package me.julionxn.versions.loaders;
+package me.julionxn.version.loaders;
 
-import me.julionxn.versions.installers.FabricInstaller;
-import me.julionxn.versions.installers.LoaderInstaller;
+import me.julionxn.version.installers.FabricInstaller;
+import me.julionxn.version.installers.LoaderInstaller;
+import org.jetbrains.annotations.NotNull;
 
 public class FabricLoader extends Loader {
 
@@ -12,7 +13,7 @@ public class FabricLoader extends Loader {
     }
 
     @Override
-    public LoaderInstaller getInstaller() {
+    public @NotNull LoaderInstaller getInstaller() {
         if (fabricInstaller == null) {
             fabricInstaller = new FabricInstaller();
         }

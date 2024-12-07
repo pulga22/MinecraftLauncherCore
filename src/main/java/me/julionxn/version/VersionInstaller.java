@@ -1,4 +1,4 @@
-package me.julionxn.versions;
+package me.julionxn.version;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -6,12 +6,15 @@ import com.google.gson.JsonObject;
 import me.julionxn.CoreLogger;
 import me.julionxn.ProgressCallback;
 import me.julionxn.data.DataController;
-import me.julionxn.files.Natives;
-import me.julionxn.files.SystemController;
-import me.julionxn.versions.installers.DownloadStatus;
-import me.julionxn.versions.installers.Installer;
-import me.julionxn.versions.installers.LoaderInstaller;
-import me.julionxn.versions.loaders.Loader;
+import me.julionxn.system.Natives;
+import me.julionxn.system.SystemController;
+import me.julionxn.version.data.AssetIndexInfo;
+import me.julionxn.version.data.RuntimeComponentInfo;
+import me.julionxn.version.data.VersionJarInfo;
+import me.julionxn.version.installers.DownloadStatus;
+import me.julionxn.version.installers.Installer;
+import me.julionxn.version.installers.LoaderInstaller;
+import me.julionxn.version.loaders.Loader;
 
 import java.io.*;
 import java.net.MalformedURLException;
@@ -53,7 +56,7 @@ public class VersionInstaller extends Installer {
             Loader loader = minecraftVersion.getLoader();
             if (loader != null){
                 LoaderInstaller loaderInstaller = loader.getInstaller();
-                return loaderInstaller.install(logger, loader, minecraftVersion, dataController, osName, natives, callback);
+                return loaderInstaller.install(logger, minecraftVersion, dataController, osName, natives, callback);
             } else {
                 return true;
             }
@@ -121,7 +124,7 @@ public class VersionInstaller extends Installer {
             return;
         }
         File outputFile = outputFileOptional.get();
-        downloadAndCheckFile("Asset Object", url, hash, expectedSize, outputFile, () -> {
+        downloadAndCheckFile(url, hash, expectedSize, outputFile, () -> {
             downloadAssetObject(url, hash, expectedSize);
             return DownloadStatus.OK;
         });
@@ -167,14 +170,14 @@ public class VersionInstaller extends Installer {
                     return false;
                 }
                 Optional<File> file = downloadLibraryArtifact(artifactUrl, path, hash, size);
+                librariesDone++;
+                callback.onProgress(status, (float) librariesDone / totalLibraries);
                 if (!path.contains("natives") || file.isEmpty()) continue;
                 Natives fileNatives = getNatives(path);
                 if (fileNatives == natives){
                     extractNatives(minecraftVersion.getVersion(), file.get());
                 }
             }
-            librariesDone++;
-            callback.onProgress(status, (float) librariesDone / totalLibraries);
         }
         return true;
     }
@@ -186,7 +189,7 @@ public class VersionInstaller extends Installer {
             return Optional.empty();
         }
         File outputFile = outputFileOptional.get();
-        downloadAndCheckFile("Library", url, hash, expectedSize, outputFile, () -> {
+        downloadAndCheckFile(url, hash, expectedSize, outputFile, () -> {
             downloadLibraryArtifact(url, path, hash, expectedSize);
             return DownloadStatus.OK;
         });
@@ -194,7 +197,9 @@ public class VersionInstaller extends Installer {
     }
 
     private void extractNatives(String version, File file){
-        Path nativesFolder = dataController.prepareNativesFolder(version);
+        Optional<Path> nativesFolderOpt = dataController.prepareNativesFolder(version);
+        if (nativesFolderOpt.isEmpty()) return;
+        Path nativesFolder = nativesFolderOpt.get();
         try (JarFile jar = new JarFile(file)) {
             Enumeration<JarEntry> entries = jar.entries();
             while (entries.hasMoreElements()) {
@@ -226,7 +231,9 @@ public class VersionInstaller extends Installer {
         RuntimeComponentInfo runtimeComponentInfo = minecraftVersion.getRuntimeComponentInfo();
         String componentVersion = runtimeComponentInfo.version();
         JsonObject componentData = runtimeComponentInfo.runtimeData();
-        Path componentFolder = dataController.prepareRuntimeFolder(componentVersion);
+        Optional<Path> componentFolderOpt = dataController.prepareRuntimeFolder(componentVersion);
+        if (componentFolderOpt.isEmpty()) return false;
+        Path componentFolder = componentFolderOpt.get();
         JsonObject files = componentData.get("files").getAsJsonObject();
         List<Map.Entry<String, JsonElement>> sortedFiles = getSortedArray(files);
         int totalEntries = sortedFiles.size();
@@ -252,9 +259,7 @@ public class VersionInstaller extends Installer {
 
     private void downloadRuntimeFile(File file, String key, String type, JsonObject data){
         switch (type) {
-            case "directory" -> {
-                file.mkdir();
-            }
+            case "directory" -> file.mkdir();
             case "file" -> {
                 boolean executable = data.get("executable").getAsBoolean();
                 JsonObject downloads = data.get("downloads").getAsJsonObject();
@@ -321,7 +326,7 @@ public class VersionInstaller extends Installer {
         Optional<File> clientJarFileOpt = dataController.prepareVersionJarFile(version);
         if (clientJarFileOpt.isEmpty()) return false;
         File clientJarFile = clientJarFileOpt.get();
-        DownloadStatus downloadStatus = downloadAndCheckFile("ClientJar", url, sha1, size, clientJarFile, () -> {
+        DownloadStatus downloadStatus = downloadAndCheckFile(url, sha1, size, clientJarFile, () -> {
             installClientJar();
             return DownloadStatus.OK;
         });

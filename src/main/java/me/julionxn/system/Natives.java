@@ -1,4 +1,4 @@
-package me.julionxn.files;
+package me.julionxn.system;
 
 public enum Natives {
     LINUX, WIN86, WIN64, WIN, OSX, OSX64, NONE, WIN_ARM64, OSX_ARM64, LINUX_ARM, LINUX_OTHER;

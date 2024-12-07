@@ -1,4 +1,4 @@
-package me.julionxn.versions.installers;
+package me.julionxn.version.installers;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -7,12 +7,12 @@ import me.julionxn.CoreLogger;
 import me.julionxn.ProgressCallback;
 import me.julionxn.data.DataController;
 import me.julionxn.data.TempFolder;
-import me.julionxn.files.Natives;
-import me.julionxn.versions.FetchingUtils;
-import me.julionxn.versions.Library;
-import me.julionxn.versions.MavenMetadata;
-import me.julionxn.versions.MinecraftVersion;
-import me.julionxn.versions.loaders.Loader;
+import me.julionxn.system.Natives;
+import me.julionxn.version.FetchingUtils;
+import me.julionxn.version.MinecraftVersion;
+import me.julionxn.version.data.Library;
+import me.julionxn.version.data.MavenMetadata;
+import me.julionxn.version.loaders.Loader;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -24,32 +24,43 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class FabricInstaller extends LoaderInstaller {
 
     private static final String FABRIC_INSTALLER_MAVEN_URL = "https://maven.fabricmc.net/net/fabricmc/fabric-installer/maven-metadata.xml";
+    private static final String STATUS = "Installing FabricLoader";
 
     private final List<String> JVMArgs = new ArrayList<>();
     private List<Library> libraries;
 
     @Override
-    public boolean install(CoreLogger logger, Loader loader, MinecraftVersion minecraftVersion, DataController dataController, String osName, Natives natives, ProgressCallback callback) {
+    public boolean install(CoreLogger logger, MinecraftVersion minecraftVersion, DataController dataController, String osName, Natives natives, ProgressCallback callback) {
+        callback.onProgress(STATUS, 0);
+        Loader loader = minecraftVersion.getLoader();
+        if (loader == null) return false;
         String fabricLoaderVersion = loader.getVersion();
         TempFolder tempFolder = dataController.prepareTempFolder();
         Path tempFolderPath = tempFolder.path();
-        downloadFabricFiles(logger, minecraftVersion, dataController, tempFolderPath, fabricLoaderVersion);
+        downloadFabricFiles(logger, minecraftVersion, tempFolderPath, fabricLoaderVersion, callback);
         Path librariesPath = tempFolderPath.resolve("libraries");
         libraries = parseLibraries(logger, librariesPath, dataController.getLibrariesPath());
-        moveContents(librariesPath, dataController.getLibrariesPath());
+        try {
+            moveContents(librariesPath, dataController.getLibrariesPath());
+            callback.onProgress(STATUS, 0.75f);
+        } catch (IOException e) {
+            logger.error("Error moving libraries: " + librariesPath, e);
+        }
         String versionLoader = "fabric-loader-" + fabricLoaderVersion + "-" + minecraftVersion.getVersion();
         Path versionDataPath = tempFolderPath.resolve("versions")
                 .resolve(versionLoader).resolve(versionLoader + ".json");
-        Optional<JsonObject> versionDataOpt = loadJson(versionDataPath);
-        if (versionDataOpt.isEmpty()) return false;
-        JsonObject versionData = versionDataOpt.get();
+        JsonObject versionData;
+        try {
+            versionData = loadJson(versionDataPath);
+        } catch (IOException e) {
+            logger.error("Error trying to get JSON: " + versionDataPath, e);
+            return false;
+        }
         minecraftVersion.setMainClass(versionData.get("mainClass").getAsString());
         JsonObject args = versionData.getAsJsonObject("arguments");
         JsonArray jvmArgs = args.getAsJsonArray("jvm");
@@ -58,10 +69,11 @@ public class FabricInstaller extends LoaderInstaller {
             JVMArgs.add(arg);
         }
         tempFolder.close().run();
+        callback.onProgress(STATUS, 1f);
         return true;
     }
 
-    private void downloadFabricFiles(CoreLogger logger, MinecraftVersion minecraftVersion, DataController dataController, Path tempFolderPath, String fabricLoaderVersion){
+    private void downloadFabricFiles(CoreLogger logger, MinecraftVersion minecraftVersion, Path tempFolderPath, String fabricLoaderVersion, ProgressCallback callback) {
         Optional<String> latestInstallerVersionOpt = getLatestInstallerVersion(logger);
         if (latestInstallerVersionOpt.isEmpty()) return;
         String latestInstallerVersion = latestInstallerVersionOpt.get();
@@ -73,12 +85,13 @@ public class FabricInstaller extends LoaderInstaller {
             return;
         }
         URL downloadUrl = downloadUrlOpt.get();
-        File installerFile = dataController.prepareFile(tempFolderPath.resolve(fabricLoaderVersion + ".jar"));
+        File installerFile = tempFolderPath.resolve(fabricLoaderVersion + ".jar").toFile();
         DownloadStatus status = downloadFile(downloadUrl, installerFile);
         if (status != DownloadStatus.OK) {
             logger.error("Failed to download Fabric Installer. Code: " + status + ".");
             return;
         }
+        callback.onProgress(STATUS, 0.25f);
         String command = "java -jar " +
                 installerFile.toPath() +
                 " client -dir " +
@@ -111,6 +124,7 @@ public class FabricInstaller extends LoaderInstaller {
                 logger.info("Command executed successfully.");
                 logger.info("Output: " + output);
             }
+            callback.onProgress(STATUS, 0.5f);
         } catch (IOException | InterruptedException e) {
             logger.error("Error executing the command: " + command, e);
         }
@@ -118,8 +132,8 @@ public class FabricInstaller extends LoaderInstaller {
 
     private Optional<String> getLatestInstallerVersion(CoreLogger logger){
         try {
-            MavenMetadata mavenMetadata = FetchingUtils.parseMavenMetadata(FABRIC_INSTALLER_MAVEN_URL);
-            return Optional.of(mavenMetadata.latest());
+            Optional<MavenMetadata> mavenMetadataOpt = FetchingUtils.parseMavenMetadata(FABRIC_INSTALLER_MAVEN_URL);
+            return mavenMetadataOpt.map(MavenMetadata::latest);
         } catch (IOException e) {
             logger.error("Error while fetching Maven Metadata " + FABRIC_INSTALLER_MAVEN_URL + ".", e);
             return Optional.empty();
@@ -129,23 +143,19 @@ public class FabricInstaller extends LoaderInstaller {
     private List<Library> parseLibraries(CoreLogger logger, Path librariesPath, Path finalLibrariesPath){
         Path baseDir = librariesPath.getParent();
         Path targetDir = finalLibrariesPath.getParent();
-        Set<Path> paths;
         try (Stream<Path> jarFiles = Files.walk(librariesPath)) {
-             paths = jarFiles.filter(path -> path.toString().endsWith(".jar"))
+             return jarFiles.filter(path -> path.toString().endsWith(".jar"))
                     .map(path -> {
                         Path relativePath = baseDir.relativize(path);
-                        return targetDir.resolve(relativePath);
-                    }).collect(Collectors.toSet());
+                        Path finalPath = targetDir.resolve(relativePath);
+                        String artifact = finalPath.getParent().getParent().getFileName().toString();
+                        String version = finalPath.getParent().getFileName().toString();
+                        return new Library(artifact, version, finalPath);
+                    }).toList();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            logger.error("Error while parsing libraries", e);
+            return new ArrayList<>();
         }
-        List<Library> fabricLibraries = new ArrayList<>();
-        for (Path path : paths) {
-            String version = path.getParent().getFileName().toString();
-            String artifact = path.getParent().getParent().getFileName().toString();
-            fabricLibraries.add(new Library(artifact, version, path));
-        }
-        return fabricLibraries;
     }
 
     @Override

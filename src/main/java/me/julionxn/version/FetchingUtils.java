@@ -1,7 +1,8 @@
-package me.julionxn.versions;
+package me.julionxn.version;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import me.julionxn.version.data.MavenMetadata;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -39,34 +40,38 @@ public class FetchingUtils {
             responseString.append(inputLine);
         }
         in.close();
-
         JsonObject response = JsonParser.parseString(responseString.toString()).getAsJsonObject();
         return Optional.of(response);
     }
 
-    public static MavenMetadata parseMavenMetadata(String url) throws IOException {
-        String metadataXml = fetchUrlContent(url);
-
+    public static Optional<MavenMetadata> parseMavenMetadata(String url) throws IOException {
+        Optional<String> metadataXmlOpt = fetchUrlContent(url);
+        if (metadataXmlOpt.isEmpty()) return Optional.empty();
+        String metadataXml = metadataXmlOpt.get();
         String release = extractFirstMatch("(?<=<release>).*?(?=</release>)", metadataXml);
         String latest = extractFirstMatch("(?<=<latest>).*?(?=</latest>)", metadataXml);
-        List<String> versions = extractAllMatches("(?<=<version>).*?(?=</version>)", metadataXml);
-
-        return new MavenMetadata(release, latest, versions);
+        List<String> versions = extractAllMatches(metadataXml);
+        if (release == null || latest == null){
+            return Optional.empty();
+        }
+        return Optional.of(new MavenMetadata(release, latest, versions));
     }
 
-    private static String fetchUrlContent(String urlString) throws IOException {
+    private static Optional<String> fetchUrlContent(String urlString) throws IOException {
         StringBuilder content = new StringBuilder();
         URL url = new URL(urlString);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
-
+        if (connection.getResponseCode() != HttpURLConnection.HTTP_OK){
+            return Optional.empty();
+        }
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 content.append(line).append("\n");
             }
         }
-        return content.toString();
+        return Optional.of(content.toString());
     }
 
     private static String extractFirstMatch(String regex, String text) {
@@ -75,9 +80,9 @@ public class FetchingUtils {
         return matcher.find() ? matcher.group() : null;
     }
 
-    private static List<String> extractAllMatches(String regex, String text) {
+    private static List<String> extractAllMatches(String text) {
         List<String> matches = new ArrayList<>();
-        Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
+        Pattern pattern = Pattern.compile("(?<=<version>).*?(?=</version>)", Pattern.MULTILINE);
         Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
             matches.add(matcher.group());
@@ -86,10 +91,7 @@ public class FetchingUtils {
     }
 
     public static String getClassPathSeparator(String osName){
-        if (osName.equals("windows")){
-            return ";";
-        }
-        return ":";
+        return osName.equals("windows") ? ";" : ":";
     }
 
 }
