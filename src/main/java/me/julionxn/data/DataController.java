@@ -1,15 +1,11 @@
 package me.julionxn.data;
 
 import me.julionxn.CoreLogger;
-import org.jetbrains.annotations.NotNull;
+import me.julionxn.utils.FilesUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Optional;
 
 public class DataController {
@@ -22,7 +18,7 @@ public class DataController {
     private final Path runtimesPath;
     private final Path tempPath;
 
-    public DataController(CoreLogger logger, Path dataPath){
+    public DataController(CoreLogger logger, Path dataPath) {
         this.logger = logger;
         this.assetsPath = dataPath.resolve("assets");
         this.librariesPath = dataPath.resolve("libraries");
@@ -32,27 +28,27 @@ public class DataController {
         this.tempPath = dataPath.resolve("temp");
     }
 
-    public Path getNativesPath(){
+    public Path getNativesPath() {
         return nativesPath;
     }
 
-    public Path getAssetsPath(){
+    public Path getAssetsPath() {
         return assetsPath;
     }
 
-    public Path getVersionsPath(){
+    public Path getVersionsPath() {
         return versionsPath;
     }
 
-    public Path getLibrariesPath(){
+    public Path getLibrariesPath() {
         return librariesPath;
     }
 
-    public Path getRuntimesPath(){
+    public Path getRuntimesPath() {
         return runtimesPath;
     }
 
-    public Optional<File> prepareAssetObjectFile(String hash){
+    public Optional<File> prepareAssetObjectFile(String hash) {
         String folderName = hash.substring(0, 2);
         File folderFile = assetsPath.resolve("objects").resolve(folderName).toFile();
         if (!folderFile.exists() && !folderFile.mkdir()) {
@@ -64,7 +60,7 @@ public class DataController {
         return Optional.of(objectFile);
     }
 
-    public Optional<File> prepareAssetIndexFile(String id){
+    public Optional<File> prepareAssetIndexFile(String id) {
         File indexFile = assetsPath.resolve("indexes").resolve(id + ".json").toFile();
         if (indexFile.exists()) return Optional.empty();
         logger.info("Preparing Asset Index File " + id + ".");
@@ -82,7 +78,7 @@ public class DataController {
         return Optional.of(libraryFile);
     }
 
-    public Optional<Path> prepareNativesFolder(String version){
+    public Optional<Path> prepareNativesFolder(String version) {
         Path folder = nativesPath.resolve(version);
         File file = folder.toFile();
         if (!file.exists() && !file.mkdir()) {
@@ -94,7 +90,7 @@ public class DataController {
         }
     }
 
-    public Optional<Path> prepareRuntimeFolder(String name){
+    public Optional<Path> prepareRuntimeFolder(String name) {
         Path folder = runtimesPath.resolve(name);
         File file = folder.toFile();
         if (!file.exists() && !file.mkdir()) {
@@ -106,7 +102,7 @@ public class DataController {
         }
     }
 
-    public Optional<Path> prepareVersionFolder(String version){
+    public Optional<Path> prepareVersionFolder(String version) {
         File versionFolder = versionsPath.resolve(version).toFile();
         if (!versionFolder.exists() && !versionFolder.mkdir()) {
             logger.error("Failed to prepare Version Folder " + version + ".");
@@ -116,7 +112,7 @@ public class DataController {
         return Optional.of(versionFolder.toPath());
     }
 
-    public Optional<File> prepareVersionJarFile(String version){
+    public Optional<File> prepareVersionJarFile(String version) {
         Optional<Path> versionFolderOpt = prepareVersionFolder(version);
         if (versionFolderOpt.isEmpty()) return Optional.empty();
         Path versionFolder = versionFolderOpt.get();
@@ -125,7 +121,7 @@ public class DataController {
         return Optional.of(versionFile);
     }
 
-    public Optional<File> prepareVersionManifestFile(String version){
+    public Optional<File> prepareVersionManifestFile(String version) {
         File versionFolder = versionsPath.resolve(version).toFile();
         if (!versionFolder.exists() && !versionFolder.mkdir()) {
             logger.error("Failed to prepare Manifest File " + version + ".");
@@ -136,14 +132,14 @@ public class DataController {
         return Optional.of(manifestFile);
     }
 
-    public TempFolder prepareTempFolder(){
+    public TempFolder prepareTempFolder() {
         Path folder = tempPath.resolve(String.valueOf(System.currentTimeMillis()));
-        if (folder.toFile().mkdir()){
+        if (folder.toFile().mkdir()) {
             logger.info("Creating temp folder " + folder + ".");
         }
         Runnable delete = () -> {
             try {
-                deleteDirectory(folder);
+                FilesUtils.deleteDirectory(folder);
                 logger.info("Deleting temp folder " + folder);
                 File file = tempPath.toFile();
                 if (!file.exists() && !file.mkdir()) {
@@ -154,24 +150,6 @@ public class DataController {
             }
         };
         return new TempFolder(folder, delete);
-    }
-
-    private void deleteDirectory(Path path) throws IOException {
-        if (Files.exists(path)) {
-            Files.walkFileTree(path, new SimpleFileVisitor<>() {
-                @Override
-                public @NotNull FileVisitResult visitFile(Path file, @NotNull BasicFileAttributes attrs) throws IOException {
-                    Files.delete(file);
-                    return FileVisitResult.CONTINUE;
-                }
-
-                @Override
-                public @NotNull FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                    Files.delete(dir);
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        }
     }
 
 }

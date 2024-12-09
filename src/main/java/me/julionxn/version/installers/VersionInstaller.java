@@ -1,4 +1,4 @@
-package me.julionxn.version;
+package me.julionxn.version.installers;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -8,12 +8,10 @@ import me.julionxn.ProgressCallback;
 import me.julionxn.data.DataController;
 import me.julionxn.system.Natives;
 import me.julionxn.system.SystemController;
+import me.julionxn.version.MinecraftVersion;
 import me.julionxn.version.data.AssetIndexInfo;
 import me.julionxn.version.data.RuntimeComponentInfo;
 import me.julionxn.version.data.VersionJarInfo;
-import me.julionxn.version.installers.DownloadStatus;
-import me.julionxn.version.installers.Installer;
-import me.julionxn.version.installers.LoaderInstaller;
 import me.julionxn.version.loaders.Loader;
 
 import java.io.*;
@@ -26,6 +24,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -38,6 +37,7 @@ public class VersionInstaller extends Installer {
     private final String osName;
     private final Natives natives;
     private final ProgressCallback callback;
+    private final int threads = 4;
 
     public VersionInstaller(CoreLogger logger, MinecraftVersion minecraftVersion, SystemController systemController, DataController dataController, ProgressCallback callback){
         this.logger = logger;
@@ -80,26 +80,29 @@ public class VersionInstaller extends Installer {
             logger.error("Error getting URL " + RESOURCES_URL + ".", e);
             return false;
         }
-        Set<Map.Entry<String, JsonElement>> entries = objects.entrySet();
+        List<Map.Entry<String, JsonElement>> entries = objects.entrySet().stream().toList();
         int totalEntries = entries.size();
-        int entriesDone = 0;
-        for (Map.Entry<String, JsonElement> objectEntry : entries) {
-            JsonObject object = objectEntry.getValue().getAsJsonObject();
-            String hash = object.get("hash").getAsString();
-            int size = object.get("size").getAsInt();
-            URL objectUrl;
-            try {
-                objectUrl = resourcesURI.resolve(hash.substring(0, 2) + "/").resolve(hash).toURL();
-            } catch (MalformedURLException e) {
-                logger.error("Malformed URL: ", e);
-                entriesDone++;
-                callback.onProgress(status, (float) entriesDone / totalEntries);
-                continue;
+        AtomicInteger entriesDone = new AtomicInteger();
+        List<List<Map.Entry<String, JsonElement>>> batches = splitIntoBatches(entries, threads);
+        executeConcurrent(batches, batch -> {
+            for (Map.Entry<String, JsonElement> objectEntry : batch) {
+                JsonObject object = objectEntry.getValue().getAsJsonObject();
+                String hash = object.get("hash").getAsString();
+                int size = object.get("size").getAsInt();
+                URL objectUrl;
+                try {
+                    objectUrl = resourcesURI.resolve(hash.substring(0, 2)).resolve(hash).toURL();
+                } catch (MalformedURLException e) {
+                    logger.error("Malformed URL: ", e);
+                    entriesDone.getAndIncrement();
+                    callback.onProgress(status, (float) entriesDone.get() / totalEntries);
+                    continue;
+                }
+                downloadAssetObject(objectUrl, hash, size);
+                entriesDone.getAndIncrement();
+                callback.onProgress(status, (float) entriesDone.get() / totalEntries);
             }
-            downloadAssetObject(objectUrl, hash, size);
-            entriesDone++;
-            callback.onProgress(status, (float) entriesDone / totalEntries);
-        }
+        }, threads);
         return true;
     }
 
@@ -135,50 +138,53 @@ public class VersionInstaller extends Installer {
         callback.onProgress(status, 0);
         JsonArray libraries = minecraftVersion.getLibraries();
         int totalLibraries = libraries.size();
-        int librariesDone = 0;
-        for (JsonElement library : libraries) {
-            JsonObject downloads = library.getAsJsonObject().get("downloads").getAsJsonObject();
-            JsonElement rulesElement = library.getAsJsonObject().get("rules");
-            if (rulesElement != null) {
-                JsonArray rules = rulesElement.getAsJsonArray();
-                boolean breakLibrary = false;
-                for (JsonElement ruleElement : rules) {
-                    String libraryOs = ruleElement.getAsJsonObject().get("os").getAsJsonObject().get("name").getAsString();
-                    if (libraryOs == null || !libraryOs.equals(osName)){
-                        breakLibrary = true;
+        AtomicInteger librariesDone = new AtomicInteger();
+        List<List<JsonElement>> batches = splitIntoBatches(libraries.asList(), threads);
+        executeConcurrent(batches, batch -> {
+            for (JsonElement library : batch) {
+                JsonObject downloads = library.getAsJsonObject().get("downloads").getAsJsonObject();
+                JsonElement rulesElement = library.getAsJsonObject().get("rules");
+                if (rulesElement != null) {
+                    JsonArray rules = rulesElement.getAsJsonArray();
+                    boolean breakLibrary = false;
+                    for (JsonElement ruleElement : rules) {
+                        String libraryOs = ruleElement.getAsJsonObject().get("os").getAsJsonObject().get("name").getAsString();
+                        if (libraryOs == null || !libraryOs.equals(osName)){
+                            breakLibrary = true;
+                        }
+                    }
+                    if (breakLibrary) {
+                        librariesDone.getAndIncrement();
+                        callback.onProgress(status, (float) librariesDone.get() / totalLibraries);
+                        continue;
                     }
                 }
-                if (breakLibrary) {
-                    librariesDone++;
-                    callback.onProgress(status, (float) librariesDone / totalLibraries);
-                    continue;
+                for (Map.Entry<String, JsonElement> downloadEntry : downloads.entrySet()) {
+                    JsonObject download = downloadEntry.getValue().getAsJsonObject();
+                    String path = download.get("path").getAsString();
+                    String url = download.get("url").getAsString();
+                    String hash = download.get("sha1").getAsString();
+                    int size = download.get("size").getAsInt();
+                    URL artifactUrl;
+                    try{
+                        artifactUrl = new URL(url);
+                    } catch (MalformedURLException e) {
+                        logger.error("Error getting URL " + url + ".", e);
+                        librariesDone.getAndIncrement();
+                        callback.onProgress(status, (float) librariesDone.get() / totalLibraries);
+                        return;
+                    }
+                    Optional<File> file = downloadLibraryArtifact(artifactUrl, path, hash, size);
+                    librariesDone.getAndIncrement();
+                    callback.onProgress(status, (float) librariesDone.get() / totalLibraries);
+                    if (!path.contains("natives") || file.isEmpty()) continue;
+                    Natives fileNatives = getNatives(path);
+                    if (fileNatives == natives){
+                        extractNatives(minecraftVersion.getVersion(), file.get());
+                    }
                 }
             }
-            for (Map.Entry<String, JsonElement> downloadEntry : downloads.entrySet()) {
-                JsonObject download = downloadEntry.getValue().getAsJsonObject();
-                String path = download.get("path").getAsString();
-                String url = download.get("url").getAsString();
-                String hash = download.get("sha1").getAsString();
-                int size = download.get("size").getAsInt();
-                URL artifactUrl;
-                try{
-                    artifactUrl = new URL(url);
-                } catch (MalformedURLException e) {
-                    logger.error("Error getting URL " + url + ".", e);
-                    librariesDone++;
-                    callback.onProgress(status, (float) librariesDone / totalLibraries);
-                    return false;
-                }
-                Optional<File> file = downloadLibraryArtifact(artifactUrl, path, hash, size);
-                librariesDone++;
-                callback.onProgress(status, (float) librariesDone / totalLibraries);
-                if (!path.contains("natives") || file.isEmpty()) continue;
-                Natives fileNatives = getNatives(path);
-                if (fileNatives == natives){
-                    extractNatives(minecraftVersion.getVersion(), file.get());
-                }
-            }
-        }
+        }, threads);
         return true;
     }
 
@@ -237,23 +243,26 @@ public class VersionInstaller extends Installer {
         JsonObject files = componentData.get("files").getAsJsonObject();
         List<Map.Entry<String, JsonElement>> sortedFiles = getSortedArray(files);
         int totalEntries = sortedFiles.size();
-        int entriesDone = 0;
-        for (Map.Entry<String, JsonElement> file : sortedFiles) {
-            String key = file.getKey();
-            JsonObject data = file.getValue().getAsJsonObject();
-            String type = data.get("type").getAsString();
-            Path filePath = componentFolder.resolve(key);
-            if (filePath.toFile().exists()) {
-                logger.info("Runtime Object " + key + " already exists.");
-                entriesDone++;
-                callback.onProgress(status, (float) entriesDone / totalEntries);
-                continue;
+        AtomicInteger entriesDone = new AtomicInteger();
+        List<List<Map.Entry<String, JsonElement>>> batches = splitIntoBatches(sortedFiles, threads);
+        executeConcurrent(batches, batch -> {
+            for (Map.Entry<String, JsonElement> file : batch) {
+                String key = file.getKey();
+                JsonObject data = file.getValue().getAsJsonObject();
+                String type = data.get("type").getAsString();
+                Path filePath = componentFolder.resolve(key);
+                if (filePath.toFile().exists()) {
+                    logger.info("Runtime Object " + key + " already exists.");
+                    entriesDone.getAndIncrement();
+                    callback.onProgress(status, (float) entriesDone.get() / totalEntries);
+                    continue;
+                }
+                File objectFile = filePath.toFile();
+                downloadRuntimeFile(objectFile, key, type, data);
+                entriesDone.getAndIncrement();
+                callback.onProgress(status, (float) entriesDone.get() / totalEntries);
             }
-            File objectFile = filePath.toFile();
-            downloadRuntimeFile(objectFile, key, type, data);
-            entriesDone++;
-            callback.onProgress(status, (float) entriesDone / totalEntries);
-        }
+        }, threads);
         return true;
     }
 

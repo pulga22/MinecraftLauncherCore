@@ -8,7 +8,7 @@ import me.julionxn.data.DataController;
 import me.julionxn.profile.Profile;
 import me.julionxn.system.Natives;
 import me.julionxn.system.SystemController;
-import me.julionxn.version.FetchingUtils;
+import me.julionxn.utils.FetchingUtils;
 import me.julionxn.version.MinecraftVersion;
 import me.julionxn.version.data.Library;
 import me.julionxn.version.data.RuntimeComponentInfo;

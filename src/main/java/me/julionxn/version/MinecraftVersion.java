@@ -7,6 +7,7 @@ import me.julionxn.CoreLogger;
 import me.julionxn.ProgressCallback;
 import me.julionxn.system.Natives;
 import me.julionxn.system.SystemController;
+import me.julionxn.utils.FetchingUtils;
 import me.julionxn.version.data.AssetIndexInfo;
 import me.julionxn.version.data.RuntimeComponentInfo;
 import me.julionxn.version.data.VersionJarInfo;

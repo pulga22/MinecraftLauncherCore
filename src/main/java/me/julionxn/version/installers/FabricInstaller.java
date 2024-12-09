@@ -8,7 +8,8 @@ import me.julionxn.ProgressCallback;
 import me.julionxn.data.DataController;
 import me.julionxn.data.TempFolder;
 import me.julionxn.system.Natives;
-import me.julionxn.version.FetchingUtils;
+import me.julionxn.utils.FetchingUtils;
+import me.julionxn.utils.FilesUtils;
 import me.julionxn.version.MinecraftVersion;
 import me.julionxn.version.data.Library;
 import me.julionxn.version.data.MavenMetadata;
@@ -46,7 +47,7 @@ public class FabricInstaller extends LoaderInstaller {
         Path librariesPath = tempFolderPath.resolve("libraries");
         libraries = parseLibraries(logger, librariesPath, dataController.getLibrariesPath());
         try {
-            moveContents(librariesPath, dataController.getLibrariesPath());
+            FilesUtils.moveContents(librariesPath, dataController.getLibrariesPath());
             callback.onProgress(STATUS, 0.75f);
         } catch (IOException e) {
             logger.error("Error moving libraries: " + librariesPath, e);

@@ -1,9 +1,12 @@
 package me.julionxn.profile;
 
 import me.julionxn.CoreLogger;
+import me.julionxn.data.DataController;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -15,11 +18,13 @@ import java.util.stream.Stream;
 public class ProfilesController {
 
     private final CoreLogger logger;
-    private final Path profilesPath;
+    private final DataController dataController;
     private final HashMap<String, Profile> loadedProfiles = new HashMap<>();
+    private final Path profilesPath;
 
-    public ProfilesController(CoreLogger logger, Path profilesPath){
+    public ProfilesController(CoreLogger logger, DataController dataController, Path profilesPath){
         this.logger = logger;
+        this.dataController = dataController;
         this.profilesPath = profilesPath;
     }
 
@@ -33,6 +38,24 @@ public class ProfilesController {
             String id = directory.getFileName().toString();
             loadedProfiles.put(id, new Profile(id, directory));
         }
+    }
+
+    public URLProfiles getProfilesFrom(String urlStr) {
+        URL url = null;
+        try {
+            url = new URL(urlStr);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+        return getProfilesFrom(new ModpackBundlerFetcher(logger, url));
+    }
+
+    public URLProfiles getProfilesFrom(ProfilesFetcher fetcher){
+        return fetcher.fetch(this, dataController, fetcher.url);
+    }
+
+    public void addProfile(Profile profile){
+        loadedProfiles.put(profile.getId(), profile);
     }
 
     private Set<Path> getDirectories(Path path){
@@ -57,6 +80,10 @@ public class ProfilesController {
         Profile profile = new Profile(id, profilePath);
         loadedProfiles.put(id, profile);
         return Optional.of(profile);
+    }
+
+    public Path getProfilesPath(){
+        return profilesPath;
     }
 
 }

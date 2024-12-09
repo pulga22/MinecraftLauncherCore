@@ -4,6 +4,7 @@ import me.julionxn.CoreLogger;
 import me.julionxn.ProgressCallback;
 import me.julionxn.data.DataController;
 import me.julionxn.system.SystemController;
+import me.julionxn.version.installers.VersionInstaller;
 import me.julionxn.version.loaders.Loader;
 
 import java.util.Optional;

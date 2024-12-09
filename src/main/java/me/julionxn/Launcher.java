@@ -23,8 +23,8 @@ public class Launcher {
         Path launcherPath = launcherData.rootPath().resolve(launcherData.launcherName());
         this.logger = new CoreLogger(launcherData);
         this.systemController = new SystemController(logger, launcherData);
-        this.profilesController = new ProfilesController(logger, launcherPath.resolve("profiles"));
         this.dataController = new DataController(logger, launcherPath.resolve("data"));
+        this.profilesController = new ProfilesController(logger, dataController, launcherPath.resolve("profiles"));
         this.versionsController = new VersionsController(logger, systemController, dataController);
         this.cacheController = new CacheController(logger, launcherPath.resolve("cache"));
     }

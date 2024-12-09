@@ -7,7 +7,13 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 public class Installer {
 
@@ -131,6 +137,24 @@ public class Installer {
             return Natives.LINUX;
         }
         return Natives.NONE;
+    }
+
+    protected <E, T extends Collection<E>> void executeConcurrent(T batches, Consumer<E> batchRunnable, int threadAmount){
+        try (ExecutorService executor = Executors.newFixedThreadPool(threadAmount)){
+            for (E batch : batches) {
+                executor.submit(() -> batchRunnable.accept(batch));
+            }
+        }
+    }
+
+    protected <E> List<List<E>> splitIntoBatches(List<E> items, int batchAmount) {
+        List<List<E>> batches = new ArrayList<>();
+        int batchSize = (int) Math.ceil((double) items.size() / batchAmount);
+        for (int i = 0; i < items.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, items.size());
+            batches.add(new ArrayList<>(items.subList(i, end)));
+        }
+        return batches;
     }
 
 }

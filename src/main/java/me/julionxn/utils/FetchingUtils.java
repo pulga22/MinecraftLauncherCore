@@ -1,4 +1,4 @@
-package me.julionxn.version;
+package me.julionxn.utils;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
