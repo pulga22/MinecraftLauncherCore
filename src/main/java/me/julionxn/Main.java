@@ -1,17 +1,8 @@
 package me.julionxn;
 
-import me.julionxn.instance.MinecraftInstance;
-import me.julionxn.instance.MinecraftOptions;
-import me.julionxn.instance.PlayerInfo;
-import me.julionxn.profile.Profile;
-import me.julionxn.profile.URLProfile;
-import me.julionxn.profile.URLProfiles;
-import me.julionxn.version.MinecraftVersion;
-
-import java.util.Optional;
-
 public class Main {
     public static void main(String[] args) {
+        /* ==================== WITH URL FETCHING ======================
         LauncherData launcherData = new LauncherData("JNLauncher", "1.0", "C:/");
         Launcher launcher = new Launcher(launcherData);
         launcher.start();
@@ -27,6 +18,7 @@ public class Main {
         });
         MinecraftInstance instance = new MinecraftInstance(launcher, version, minecraftOptions, profile, new PlayerInfo("pepe", "xd", "a"));
         instance.run();
+         */
 
 
         /* ==================== WITHOUT URL FETCHING ======================
