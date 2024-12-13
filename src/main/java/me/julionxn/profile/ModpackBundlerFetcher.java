@@ -60,13 +60,16 @@ public class ModpackBundlerFetcher extends ProfilesFetcher {
                 minecraftVersionLoader = new FabricLoader(loaderVersion);
             }
             MinecraftVersion minecraftVersion = new MinecraftVersion(version, minecraftVersionLoader);
+            String description = profileManifest.get("description").getAsString();
+            JsonObject imageData = profileManifest.getAsJsonObject("image");
+            boolean hasImage = imageData.get("has").getAsBoolean();
             List<UUID> validUUIDs = profileManifest.getAsJsonArray("validUUIDs")
                     .asList().stream()
                     .map(element -> {
                         String uuidStr = element.getAsString();
                         return UUID.fromString(uuidStr);
                     }).toList();
-            Optional<TempProfile> tempProfileOpt = getTempProfile(profilesController, dataController, profileName, url, profileFiles);
+            Optional<TempProfile> tempProfileOpt = getTempProfile(profilesController, dataController, profileName, description, hasImage, url, profileFiles);
             if (tempProfileOpt.isEmpty()) continue;
             TempProfile tempProfile = tempProfileOpt.get();
             URLProfile urlProfile = new URLProfile(minecraftVersion, tempProfile, validUUIDs);
@@ -75,9 +78,13 @@ public class ModpackBundlerFetcher extends ProfilesFetcher {
         return urlProfiles;
     }
 
-    private Optional<TempProfile> getTempProfile(ProfilesController profilesController, DataController dataController, String profileName, URL url, JsonObject files){
+    private Optional<TempProfile> getTempProfile(ProfilesController profilesController, DataController dataController, String profileName, String description, boolean hasImage, URL url, JsonObject files){
         TempFolder tempFolder = dataController.prepareTempFolder();
-        TempProfile tempProfile = new TempProfile(profileName, tempFolder, profilesController);
+        Path imagePath = null;
+        if (hasImage){
+            imagePath = profilesController.getProfilesPath().resolve(profileName).resolve("profile.png");
+        }
+        TempProfile tempProfile = new TempProfile(profileName, tempFolder, imagePath, description, profilesController);
         try {
             downloadProfileItems(tempFolder, url, files);
             return Optional.of(tempProfile);

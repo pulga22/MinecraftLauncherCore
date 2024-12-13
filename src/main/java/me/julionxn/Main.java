@@ -15,7 +15,7 @@ public class Main {
         LauncherData launcherData = new LauncherData("JNLauncher", "1.0", "C:/");
         Launcher launcher = new Launcher(launcherData);
         launcher.start();
-        URLProfiles profiles = launcher.getProfilesController().getProfilesFrom("http://localhost/greeko/");
+        URLProfiles profiles = launcher.getProfilesController().getProfilesFrom("http://localhost/Testing/");
         URLProfile urlProfile = profiles.getAllProfiles().get(0);
         Optional<Profile> profileOpt = urlProfile.tempProfile().save();
         if (profileOpt.isEmpty()) return;
