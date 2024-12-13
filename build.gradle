@@ -1,5 +1,15 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'io.github.cdimascio:dotenv-java:3.0.0'
+    }
+}
+
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 group = 'me.julionxn'
@@ -14,6 +24,29 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.9.1')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     implementation 'org.jetbrains:annotations:24.0.1'
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+}
+
+import io.github.cdimascio.dotenv.Dotenv
+def dotenv = Dotenv.configure().directory(project.rootDir.absolutePath).load()
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            from components.java
+            artifactId = 'MinecraftLauncherCore'
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/julionxn/MinecraftLauncherCore")
+            credentials {
+                username = project.findProperty("GITHUB_ACTOR") ?: dotenv["GITHUB_ACTOR"]
+                password = project.findProperty("GITHUB_TOKEN") ?: dotenv["GITHUB_TOKEN"]
+            }
+        }
+    }
 }
 
 test {
