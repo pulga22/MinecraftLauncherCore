@@ -1,15 +1,16 @@
 package io.github.julionxn.utils;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.github.julionxn.version.data.MavenMetadata;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +18,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class FetchingUtils {
+
+    public static JsonObject loadJson(Path path) throws IOException {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        try (FileReader reader = new FileReader(path.toFile())) {
+            return gson.fromJson(reader, JsonObject.class);
+        }
+    }
+
+    public static void saveJson(File file, JsonObject jsonOutput){
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        try (FileWriter fileWriter = new FileWriter(file)) {
+            gson.toJson(jsonOutput, fileWriter);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static Optional<URL> getURL(String url){
         try {

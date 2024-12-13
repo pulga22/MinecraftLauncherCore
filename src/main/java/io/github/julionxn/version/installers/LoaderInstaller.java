@@ -32,4 +32,5 @@ public abstract class LoaderInstaller extends Installer {
             return gson.fromJson(reader, JsonObject.class);
         }
     }
+
 }

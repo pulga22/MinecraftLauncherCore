@@ -32,6 +32,7 @@ public class Launcher {
     public void start(){
         this.systemController.initialize();
         this.profilesController.loadProfiles();
+        this.cacheController.initialize();
     }
 
     public ProfilesController getProfilesController(){
