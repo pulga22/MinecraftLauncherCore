@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
 
 public class FilesUtils {
 
@@ -49,6 +50,33 @@ public class FilesUtils {
 
     public static void removeFile(File file) throws IOException {
         Files.delete(file.toPath());
+    }
+
+    public static void deleteSelectedFiles(Path basePath, List<String> filesToDelete) throws IOException {
+        for (String fileName : filesToDelete) {
+            Path filePath = basePath.resolve(fileName);
+            if (Files.exists(filePath)) {
+                if (Files.isDirectory(filePath)) {
+                    deleteDirectoryContents(filePath);
+                    Files.delete(filePath);
+                } else {
+                    Files.delete(filePath);
+                }
+            }
+        }
+    }
+
+    public static void deleteDirectoryContents(Path dir) throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    deleteDirectoryContents(entry);
+                    Files.delete(entry);
+                } else {
+                    Files.delete(entry);
+                }
+            }
+        }
     }
 
 }

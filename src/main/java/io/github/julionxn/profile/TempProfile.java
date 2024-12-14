@@ -61,7 +61,7 @@ public class TempProfile {
             }
             if (currentHash.equals(checkData.hash())) return Optional.of(profile);
             try {
-                FilesUtils.deleteDirectory(profilePath);
+                FilesUtils.deleteSelectedFiles(profilePath, checkData.files());
                 profilePath.toFile().mkdir();
             } catch (IOException e) {
                 throw new RuntimeException(e);
