@@ -88,7 +88,7 @@ public class ModpackBundlerFetcher extends ProfilesFetcher {
         Path imagePath = null;
         if (hasImage && imageFileName != null){
             imagePath = profilesController.getProfilesPath().resolve(profileName).resolve("profile.png");
-            tempImagePath = tempFolder.path().resolve(profileName).resolve(imageFileName);
+            tempImagePath = tempFolder.path().resolve(profileName).resolve("profile.png");
         }
         TempProfile tempProfile = new TempProfile(profileName, tempFolder, tempImagePath, imagePath, description, profilesController);
         try {
