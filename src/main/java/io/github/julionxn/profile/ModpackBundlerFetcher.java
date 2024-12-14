@@ -1,5 +1,6 @@
 package io.github.julionxn.profile;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.github.julionxn.CoreLogger;
@@ -23,12 +24,12 @@ import java.util.stream.Collectors;
 
 public class ModpackBundlerFetcher extends ProfilesFetcher {
 
-    public ModpackBundlerFetcher(CoreLogger logger, URL url) {
-        super(logger, url);
+    public ModpackBundlerFetcher(CoreLogger logger, URL url, @Nullable String uuid) {
+        super(logger, url, uuid);
     }
 
     @Override
-    public @Nullable URLProfiles fetch(ProfilesController profilesController, DataController dataController, URL url) {
+    public @Nullable URLProfiles fetch(ProfilesController profilesController, DataController dataController, URL url, String uuid) {
         Optional<URL> manifestUrlOpt = resolveUrl(url, "manifest.json");
         if (manifestUrlOpt.isEmpty()) return null;
         URL manifestUrl = manifestUrlOpt.get();
@@ -69,11 +70,19 @@ public class ModpackBundlerFetcher extends ProfilesFetcher {
                         String uuidStr = element.getAsString();
                         return UUID.fromString(uuidStr);
                     }).toList();
+            if (uuid != null && !validUUIDs.isEmpty() && validUUIDs.contains(UUID.fromString(uuid))){
+                continue;
+            }
             String imageFileName = null;
             if (hasImage){
                 imageFileName = Path.of(imageData.get("path").getAsString()).getFileName().toString();
             }
-            Optional<TempProfile> tempProfileOpt = getTempProfile(profilesController, dataController, profileName, description, hasImage, imageFileName, url, profileFiles);
+            JsonObject checkData = profileManifest.getAsJsonObject("check");
+            String hash = checkData.get("hash").getAsString();
+            JsonArray files = checkData.getAsJsonArray("files");
+            List<String> filesCheck = files.asList().stream().map(JsonElement::getAsString).toList();
+            CheckData check = new CheckData(hash, filesCheck);
+            Optional<TempProfile> tempProfileOpt = getTempProfile(profilesController, dataController, profileName, description, check, hasImage, imageFileName, url, profileFiles);
             if (tempProfileOpt.isEmpty()) continue;
             TempProfile tempProfile = tempProfileOpt.get();
             URLProfile urlProfile = new URLProfile(minecraftVersion, tempProfile, validUUIDs);
@@ -82,7 +91,7 @@ public class ModpackBundlerFetcher extends ProfilesFetcher {
         return urlProfiles;
     }
 
-    private Optional<TempProfile> getTempProfile(ProfilesController profilesController, DataController dataController, String profileName, String description, boolean hasImage, @Nullable String imageFileName, URL url, JsonObject files){
+    private Optional<TempProfile> getTempProfile(ProfilesController profilesController, DataController dataController, String profileName, String description, CheckData checkData, boolean hasImage, @Nullable String imageFileName, URL url, JsonObject files){
         TempFolder tempFolder = dataController.prepareTempFolder();
         Path tempImagePath = null;
         Path imagePath = null;
@@ -90,7 +99,7 @@ public class ModpackBundlerFetcher extends ProfilesFetcher {
             imagePath = profilesController.getProfilesPath().resolve(profileName).resolve("profile.png");
             tempImagePath = tempFolder.path().resolve(profileName).resolve("profile.png");
         }
-        TempProfile tempProfile = new TempProfile(profileName, tempFolder, tempImagePath, imagePath, description, profilesController);
+        TempProfile tempProfile = new TempProfile(profileName, tempFolder, tempImagePath, imagePath, description, checkData, profilesController);
         try {
             downloadProfileItems(tempFolder, url, files);
             return Optional.of(tempProfile);

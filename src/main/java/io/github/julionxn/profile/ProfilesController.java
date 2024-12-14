@@ -2,6 +2,7 @@ package io.github.julionxn.profile;
 
 import io.github.julionxn.CoreLogger;
 import io.github.julionxn.data.DataController;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,18 +45,22 @@ public class ProfilesController {
         return loadedProfiles.containsKey(id);
     }
 
-    public URLProfiles getProfilesFrom(String urlStr) {
+    public URLProfiles getAllProfilesFrom(String urlStr){
+        return getValidProfilesFrom(urlStr, null);
+    }
+
+    public URLProfiles getValidProfilesFrom(String urlStr, @Nullable String uuid) {
         URL url = null;
         try {
             url = new URL(urlStr);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
-        return getProfilesFrom(new ModpackBundlerFetcher(logger, url));
+        return getProfilesFrom(new ModpackBundlerFetcher(logger, url, uuid));
     }
 
     public URLProfiles getProfilesFrom(ProfilesFetcher fetcher){
-        return fetcher.fetch(this, dataController, fetcher.url);
+        return fetcher.fetch(this, dataController, fetcher.url, fetcher.uuid);
     }
 
     public void addProfile(Profile profile){

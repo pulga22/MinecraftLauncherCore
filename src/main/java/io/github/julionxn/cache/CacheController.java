@@ -88,7 +88,7 @@ public class CacheController {
         return cacheFolder;
     }
 
-    private Optional<Path> saveHeadImage(String uuid){
+    public Optional<Path> saveHeadImage(String uuid){
         String urlString = "https://mc-heads.net/avatar/" + uuid;
         Path outputFilePath = cacheFolder.resolve("head.png");
         try (BufferedInputStream in = new BufferedInputStream(new URL(urlString).openStream());

@@ -11,13 +11,15 @@ public abstract class ProfilesFetcher extends Installer {
 
     protected final CoreLogger logger;
     public final URL url;
+    @Nullable public final String uuid;
 
 
-    protected ProfilesFetcher(CoreLogger logger, URL url) {
+    protected ProfilesFetcher(CoreLogger logger, URL url, @Nullable String uuid) {
         this.logger = logger;
         this.url = url;
+        this.uuid = uuid;
     }
 
-    public abstract @Nullable URLProfiles fetch(ProfilesController profilesController, DataController dataController, URL url);
+    public abstract @Nullable URLProfiles fetch(ProfilesController profilesController, DataController dataController, URL url, @Nullable String uuid);
 
 }
