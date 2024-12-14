@@ -40,6 +40,10 @@ public class ProfilesController {
         }
     }
 
+    public boolean profileExists(String id){
+        return loadedProfiles.containsKey(id);
+    }
+
     public URLProfiles getProfilesFrom(String urlStr) {
         URL url = null;
         try {

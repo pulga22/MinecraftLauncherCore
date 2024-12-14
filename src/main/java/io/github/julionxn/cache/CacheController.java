@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import io.github.julionxn.CoreLogger;
 import io.github.julionxn.instance.PlayerInfo;
 import io.github.julionxn.utils.FetchingUtils;
+import io.github.julionxn.utils.FilesUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -31,6 +32,15 @@ public class CacheController {
 
     public Optional<UserInfo> getUserInfo(){
         return Optional.ofNullable(userInfo);
+    }
+
+    public void clearUserInfo(){
+        this.userInfo = null;
+        try {
+            FilesUtils.removeFile(userFile);
+        } catch (IOException e) {
+            logger.error("Error removing User Info: ", e);
+        }
     }
 
     public void storeUserInfo(UserInfo userInfo){

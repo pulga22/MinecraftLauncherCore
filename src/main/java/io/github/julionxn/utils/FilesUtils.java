@@ -2,6 +2,7 @@ package io.github.julionxn.utils;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -44,6 +45,10 @@ public class FilesUtils {
                 }
             });
         }
+    }
+
+    public static void removeFile(File file) throws IOException {
+        Files.delete(file.toPath());
     }
 
 }
