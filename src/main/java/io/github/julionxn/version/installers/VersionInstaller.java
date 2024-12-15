@@ -56,7 +56,9 @@ public class VersionInstaller extends Installer {
             Loader loader = minecraftVersion.getLoader();
             if (loader != null){
                 LoaderInstaller loaderInstaller = loader.getInstaller();
-                return loaderInstaller.install(logger, minecraftVersion, dataController, osName, natives, callback);
+                boolean okLoader = loaderInstaller.install(logger, minecraftVersion, dataController, osName, natives, callback);
+                callback.onProgress("Done", 1f);
+                return okLoader;
             } else {
                 return true;
             }

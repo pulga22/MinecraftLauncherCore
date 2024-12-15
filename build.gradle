@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'me.julionxn'
-version = '0.1.6-b'
+version = '0.1.6-c'
 
 repositories {
     mavenCentral()
