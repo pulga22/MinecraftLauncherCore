@@ -1,18 +1,5 @@
 package io.github.julionxn;
 
-import io.github.julionxn.instance.MinecraftInstance;
-import io.github.julionxn.instance.MinecraftOptions;
-import io.github.julionxn.instance.PlayerInfo;
-import io.github.julionxn.profile.Profile;
-import io.github.julionxn.version.MinecraftVersion;
-import io.github.julionxn.version.loaders.FabricLoader;
-import net.lenni0451.commons.httpclient.HttpClient;
-import net.raphimc.minecraftauth.MinecraftAuth;
-import net.raphimc.minecraftauth.step.java.session.StepFullJavaSession;
-import net.raphimc.minecraftauth.step.msa.StepMsaDeviceCode;
-
-import java.util.Optional;
-
 public class Main {
     public static void main(String[] args) throws Exception {
         /* ==================== WITH URL FETCHING ======================
