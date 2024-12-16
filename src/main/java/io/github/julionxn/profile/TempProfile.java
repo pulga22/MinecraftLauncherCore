@@ -99,6 +99,7 @@ public class TempProfile {
         File[] files = folder.listFiles();
         if (files != null) {
             for (File file : files) {
+                if (file.toPath().getFileName().toString().equals("manifest.json")) continue;
                 String relativePath = file.getPath().substring(rootPath.length()).replace("\\", "/");
                 if (toCheck.contains(relativePath)) {
                     if (file.isDirectory()) {
